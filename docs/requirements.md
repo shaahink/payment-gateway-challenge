@@ -96,8 +96,8 @@ Each criterion is proved by the test named against it. A criterion that depends 
 | AC | Given / when | Then | Traces to | Depends on | Test | Status |
 | --- | --- | --- | --- | --- | --- | --- |
 | AC1 | A valid request the bank authorises (simulator: card ending in an odd digit) | `201` with `Location`, status `Authorized`, id, last four, expiry month and year, currency, amount. The payment is stored | F1, F3 | D6 | `AuthorizesAPaymentTheBankApproves` | ✅ fake bank |
-| AC2 | A valid request the bank declines (simulator: card ending in an even digit) | `201`, same shape, status `Declined`. The payment is stored | F1, F3 | D6 | | |
-| AC3 | A request that breaks any F2 rule, or sends a field of the wrong type | `400` problem details naming every failing field in one response. The bank is not called and nothing is stored | F1, F2 | D1 | `RejectsAPaymentWithAnInvalidCardNumber` | 🟡 400 and field only |
+| AC2 | A valid request the bank declines (simulator: card ending in an even digit) | `201`, same shape, status `Declined`. The payment is stored | F1, F3 | D6 | `DeclinesAPaymentTheBankDeclines` | ✅ fake bank |
+| AC3 | A request that breaks any F2 rule, or sends a field of the wrong type | `400` problem details naming every failing field in one response. The bank is not called and nothing is stored | F1, F2 | D1 | `RejectsAPaymentWithAnInvalidCardNumber`, `ReportsEveryInvalidFieldInOneResponse`, `RejectsAFieldOfTheWrongTypeWithTheSameProblemShape` | ✅ |
 | AC4 | Each F2 rule at its boundaries | Accepted or rejected as the rule says (validator unit table) | F2 | D4, D8–D11 | `PaymentRequestValidatorTests` | ✅ |
 | AC5 | The bank returns `503` (card ending in `0`) | An error response per D2, as problem details | F5 | D2 | | |
 | AC6 | Any `POST` or `GET` response | Never contains the full card number or the CVV | N6 | | | |
