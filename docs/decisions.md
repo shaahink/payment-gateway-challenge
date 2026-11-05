@@ -84,3 +84,21 @@ Numbered to match [requirements.md](requirements.md). Each records the choice, w
 
 - **Why:** outside Development, an unhandled exception must not leak internals, and every error the merchant sees should have the same shape.
 - **Consequence:** `AddProblemDetails()` plus `UseExceptionHandler()` outside Development. Every error response, expected or not, is `application/problem+json` with a `traceId` that matches the logs.
+
+## D17. Packages updated within the lines the skeleton chose
+
+The skeleton pinned 2021–2022 versions, five of them with published advisories (B12). Updated once a test suite existed that could catch a regression, as a commit of its own:
+
+| Package | From | To | Why this version |
+| --- | --- | --- | --- |
+| `Microsoft.AspNetCore.Mvc.Testing` | 6.0.24 | 8.0.33 | Latest for net8 (B11). 10.x needs net10 |
+| `Microsoft.NET.Test.Sdk` | 17.1.0 | 18.11.0 | Supports net8; drops the old `Newtonsoft.Json`, `System.Net.Http` and `System.Text.RegularExpressions` chain |
+| `xunit` | 2.4.1 | 2.9.3 | Last of v2. Its nullability annotations clear the CS8602 warnings |
+| `xunit.runner.visualstudio` | 2.4.3 | 3.1.5 | The adapter, not the framework; 3.x runs v2 tests |
+| `coverlet.collector` | 3.1.2 | 10.1.0 | Verified with `--collect:"XPlat Code Coverage"` |
+| `Swashbuckle.AspNetCore` | 6.2.3 | 6.9.0 | Clears the SwaggerUI advisory without the breaking OpenAPI changes of 7+ |
+
+- **Why:** fix every known vulnerability without changing what the brief gave: the net8 target, xUnit v2 and the `.editorconfig`.
+- **Rejected:** moving to net10. **.NET 8 support ends on 10 November 2026**, so it is the next step, but a framework move is a deliberate change of its own, not part of a take-home.
+- **Consequence:** `dotnet list package --vulnerable --include-transitive` reports nothing in any project, the build has no warnings, and all 63 tests pass unchanged. Line coverage of the in-process tests is 97.9%.
+

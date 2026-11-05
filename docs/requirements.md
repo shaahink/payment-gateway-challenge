@@ -66,8 +66,8 @@ Baseline `08fafb4`: build passes with 4 warnings; tests run **1 passed, 1 failed
 | B8 | `PaymentsRepository.cs:16`, `Currency` on all three models | Nullable warnings (CS8603, CS8618) | ✅ AC1 — API builds clean |
 | B9 | — | No `POST` endpoint and no bank client | ✅ AC1 + bank client |
 | B10 | `PaymentsControllerTests.cs:14–26` | `Random.Next(1, 12)` never returns 12; `Next(2023, 2030)` produces expired years | ✅ test reorganisation |
-| B11 | `PaymentGateway.Api.Tests.csproj:11` | `Mvc.Testing` 6.0.24 on a net8.0 project | package step |
-| B12 | Both `.csproj` files | Known-vulnerable packages (`dotnet list package --vulnerable --include-transitive`). **High**, test project, transitive: `System.Text.Json` 6.0.0, `Newtonsoft.Json` 9.0.1, `System.Net.Http` 4.3.0, `System.Text.RegularExpressions` 4.3.0. **Moderate**, API: `Swashbuckle.AspNetCore.SwaggerUI` 6.2.3 | package step |
+| B11 | `PaymentGateway.Api.Tests.csproj:11` | `Mvc.Testing` 6.0.24 on a net8.0 project | ✅ package update, 8.0.33 |
+| B12 | Both `.csproj` files | Known-vulnerable packages (`dotnet list package --vulnerable --include-transitive`). **High**, test project, transitive: `System.Text.Json` 6.0.0, `Newtonsoft.Json` 9.0.1, `System.Net.Http` 4.3.0, `System.Text.RegularExpressions` 4.3.0. **Moderate**, API: `Swashbuckle.AspNetCore.SwaggerUI` 6.2.3 | ✅ package update: none left |
 
 ## Decisions
 
@@ -89,6 +89,7 @@ Settled ones are recorded in [decisions.md](decisions.md).
 - D14. ✅ The service returns a `PaymentOutcome` rather than throwing for expected results.
 - D15. ✅ Typed `HttpClient` for the bank, with its own wire records.
 - D16. ✅ Unexpected errors are problem details outside Development, never a stack trace.
+- D17. ✅ Packages updated within the lines the skeleton chose: net8, xUnit v2, Swashbuckle 6.
 
 ## Acceptance criteria
 
