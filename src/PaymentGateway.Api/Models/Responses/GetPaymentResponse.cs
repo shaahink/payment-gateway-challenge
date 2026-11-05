@@ -2,11 +2,25 @@
 
 public class GetPaymentResponse
 {
-    public Guid Id { get; set; }
-    public PaymentStatus Status { get; set; }
-    public int CardNumberLastFour { get; set; }
-    public int ExpiryMonth { get; set; }
-    public int ExpiryYear { get; set; }
-    public string Currency { get; set; }
-    public int Amount { get; set; }
+    public Guid Id { get; init; }
+    public PaymentStatus Status { get; init; }
+    public required string CardNumberLastFour { get; init; }
+    public int ExpiryMonth { get; init; }
+    public int ExpiryYear { get; init; }
+    public required string Currency { get; init; }
+    public int Amount { get; init; }
+
+    public static GetPaymentResponse From(Payment payment)
+    {
+        return new GetPaymentResponse
+        {
+            Id = payment.Id,
+            Status = payment.Status,
+            CardNumberLastFour = payment.CardNumberLastFour,
+            ExpiryMonth = payment.ExpiryMonth,
+            ExpiryYear = payment.ExpiryYear,
+            Currency = payment.Currency,
+            Amount = payment.Amount
+        };
+    }
 }

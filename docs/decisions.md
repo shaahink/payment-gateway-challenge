@@ -8,6 +8,12 @@ Numbered to match [requirements.md](requirements.md). Each records the choice, w
 - **Rejected:** a zero-decimal currency such as JPY. It would make the minor-units rule more interesting without changing any requirement.
 - **Consequence:** any other code, including a valid ISO one, is rejected.
 
+## D6. `POST` returns `201 Created` with a `Location` header
+
+- **Why:** a payment resource is created whenever the bank answers, and the merchant needs its id to retrieve it. `Location` points at the `GET`.
+- **Rejected:** `200 OK`, which is common but says nothing about a new resource.
+- **Consequence:** `Declined` is a `201` too. The HTTP status says the request was processed; the payment status says what the bank decided. A `Rejected` request creates nothing, so it stays a `400` (D1).
+
 ## D7. Hand-written validation, no library
 
 - **Why:** six fields, one cross-field rule and a clock. A dependency would cost more than it saves, and dependencies need a reason in a PCI-scoped estate.

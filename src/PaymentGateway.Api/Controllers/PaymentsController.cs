@@ -1,27 +1,28 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using System.Diagnostics;
+
+using Microsoft.AspNetCore.Mvc;
 
 using PaymentGateway.Api.Models.Requests;
 using PaymentGateway.Api.Models.Responses;
 using PaymentGateway.Api.Services;
-using PaymentGateway.Api.Validation;
 
 namespace PaymentGateway.Api.Controllers;
 
 [Route("api/[controller]")]
 [ApiController]
-public class PaymentsController : Controller
+public class PaymentsController : ControllerBase
 {
     private readonly PaymentsRepository _paymentsRepository;
-    private readonly PaymentRequestValidator _validator;
+    private readonly PaymentService _paymentService;
 
-    public PaymentsController(PaymentsRepository paymentsRepository, PaymentRequestValidator validator)
+    public PaymentsController(PaymentsRepository paymentsRepository, PaymentService paymentService)
     {
         _paymentsRepository = paymentsRepository;
-        _validator = validator;
+        _paymentService = paymentService;
     }
 
     [HttpGet("{id:guid}")]
-    public ActionResult<PostPaymentResponse> GetPayment(Guid id)
+    public ActionResult<GetPaymentResponse> GetPayment(Guid id)
     {
         var payment = _paymentsRepository.Get(id);
 
@@ -30,22 +31,32 @@ public class PaymentsController : Controller
             return NotFound();
         }
 
-        return Ok(payment);
+        return Ok(GetPaymentResponse.From(payment));
     }
 
     [HttpPost]
-    public ActionResult<PostPaymentResponse> PostPayment(PostPaymentRequest request)
+    public async Task<ActionResult<PostPaymentResponse>> PostPaymentAsync(PostPaymentRequest request)
     {
-        foreach (var error in _validator.Validate(request))
-        {
-            ModelState.AddModelError(error.Field, error.Message);
-        }
+        var outcome = await _paymentService.ProcessAsync(request);
 
-        if (!ModelState.IsValid)
+        switch (outcome)
         {
-            return ValidationProblem();
-        }
+            case PaymentOutcome.Rejected rejected:
+                foreach (var error in rejected.Errors)
+                {
+                    ModelState.AddModelError(error.Field, error.Message);
+                }
 
-        throw new NotImplementedException();
+                return ValidationProblem();
+
+            case PaymentOutcome.Processed processed:
+                return CreatedAtAction(
+                    nameof(GetPayment),
+                    new { id = processed.Payment.Id },
+                    PostPaymentResponse.From(processed.Payment));
+
+            default:
+                throw new UnreachableException();
+        }
     }
 }
