@@ -2,6 +2,23 @@
 
 Numbered to match [requirements.md](requirements.md). Each records the choice, why, and what was turned down.
 
+## D2. A bank failure is three failures, and none is stored
+
+| The bank | We know | The merchant gets |
+| --- | --- | --- |
+| Returns `503`, or cannot be reached | It did not process the payment | `503`: safe to retry |
+| Does not answer within the timeout | Nothing: it may have authorised | `504`: outcome unknown |
+| Returns anything else (`400`, `500`, an unreadable body) | Something is wrong on one side | `502` |
+
+- **Why:** retry safety is what the merchant needs to know, and it differs between the three. Each response is problem details saying which case it is.
+- **Rejected:** one `502` for everything, which hides the one case where a retry could charge the shopper twice.
+- **Consequence:** nothing is stored, because `GET` only knows `Authorized` and `Declined`. In production a timeout would be stored as `Pending` and reconciled with the bank, and an idempotency key (D5) would make retries safe. A connection dropped *after* the request was sent is really "unknown" too; .NET 8's `HttpRequestException.HttpRequestError` could separate it from "refused", and here both count as unavailable.
+
+## D3. A bank `400` is our fault, not the merchant's
+
+- **Why:** validation runs first, so a `400` from the bank means our mapping is wrong or the bank changed. Passing it on as a `400` would tell the merchant to fix a request that was fine.
+- **Consequence:** it is a `502`, logged at Warning with the payment id.
+
 ## D4. Supported currencies: GBP, EUR, USD
 
 - **Why:** the brief caps it at three ISO codes. These are the obvious three for a London gateway, and GBP is the brief's own example.
@@ -62,3 +79,8 @@ Numbered to match [requirements.md](requirements.md). Each records the choice, w
 
 - **Why:** the bank's contract (snake_case, `expiry_date` as `MM/YYYY`) stays inside `Bank/`, and `JsonNamingPolicy.SnakeCaseLower` maps it without attributes. `IHttpClientFactory` manages connection lifetimes.
 - **Consequence:** a change on the bank's side touches two internal records. Tests stub `HttpMessageHandler`, the seam `HttpClient` is built around, so no mocking library is needed. The simulator's empty `authorization_code` on a decline becomes `null` in the domain.
+
+## D16. Unexpected errors are problem details, never a stack trace
+
+- **Why:** outside Development, an unhandled exception must not leak internals, and every error the merchant sees should have the same shape.
+- **Consequence:** `AddProblemDetails()` plus `UseExceptionHandler()` outside Development. Every error response, expected or not, is `application/problem+json` with a `traceId` that matches the logs.

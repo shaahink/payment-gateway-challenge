@@ -46,12 +46,23 @@ public class PaymentService
             request.Amount!.Value,
             request.Cvv!);
 
-        // Not tied to the merchant's request: abandoning a call the bank may already have
-        // authorised would leave a payment nobody has a record of.
-        var authorization = await _bank.AuthorizeAsync(bankRequest, CancellationToken.None);
+        var paymentId = Guid.NewGuid();
+
+        BankAuthorization authorization;
+        try
+        {
+            // Not tied to the merchant's request: abandoning a call the bank may already have
+            // authorised would leave a payment nobody has a record of.
+            authorization = await _bank.AuthorizeAsync(bankRequest, CancellationToken.None);
+        }
+        catch (BankException exception)
+        {
+            _logger.LogWarning(exception, "Payment {PaymentId} not processed, bank {Failure}", paymentId, exception.Failure);
+            return new PaymentOutcome.BankFailed(exception.Failure);
+        }
 
         var payment = new Payment(
-            Guid.NewGuid(),
+            paymentId,
             authorization.Authorized ? PaymentStatus.Authorized : PaymentStatus.Declined,
             bankRequest.CardNumber[^4..],
             bankRequest.ExpiryMonth,

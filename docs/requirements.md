@@ -74,8 +74,8 @@ Baseline `08fafb4`: build passes with 4 warnings; tests run **1 passed, 1 failed
 Settled ones are recorded in [decisions.md](decisions.md).
 
 - D1. Status code for `Rejected`: `400` with the errors, and nothing stored (per F1 and F4).
-- D2. Bank `503`: what the merchant receives, and whether anything is stored.
-- D3. Bank `400`: our validation should make it impossible, so treat it as our fault, not the merchant's.
+- D2. ✅ Bank `503` → `503`, timeout → `504`, anything else → `502`. Nothing is stored.
+- D3. ✅ A bank `400` is a `502`: our fault or the bank's, never the merchant's.
 - D4. ✅ GBP, EUR, USD.
 - D5. Idempotency and retries: out of scope for phase one, but say where they would go.
 - D6. ✅ `POST` returns `201 Created` with a `Location` header, for Authorized and Declined alike.
@@ -88,6 +88,7 @@ Settled ones are recorded in [decisions.md](decisions.md).
 - D13. ✅ The bank call is not cancelled when the merchant disconnects; a timeout bounds it.
 - D14. ✅ The service returns a `PaymentOutcome` rather than throwing for expected results.
 - D15. ✅ Typed `HttpClient` for the bank, with its own wire records.
+- D16. ✅ Unexpected errors are problem details outside Development, never a stack trace.
 
 ## Acceptance criteria
 
@@ -99,11 +100,14 @@ Each criterion is proved by the test named against it. A criterion that depends 
 | AC2 | A valid request the bank declines (simulator: card ending in an even digit) | `201`, same shape, status `Declined`. The payment is stored | F1, F3 | D6 | `DeclinesAPaymentTheBankDeclines` | ✅ fake bank |
 | AC3 | A request that breaks any F2 rule, or sends a field of the wrong type | `400` problem details naming every failing field in one response. The bank is not called and nothing is stored | F1, F2 | D1 | `RejectsAPaymentWithAnInvalidCardNumber`, `ReportsEveryInvalidFieldInOneResponse`, `RejectsAFieldOfTheWrongTypeWithTheSameProblemShape` | ✅ |
 | AC4 | Each F2 rule at its boundaries | Accepted or rejected as the rule says (validator unit table) | F2 | D4, D8–D11 | `PaymentRequestValidatorTests` | ✅ |
-| AC5 | The bank returns `503` (card ending in `0`) | An error response per D2, as problem details | F5 | D2 | | |
+| AC5 | The bank fails: `503` (simulator: card ending in `0`), a timeout, or anything unexpected | `503`, `504` or `502` as problem details saying whether a retry is safe. Nothing is stored | F5 | D2, D3 | `ReportsABankFailureAsProblemDetailsAndStoresNothing`, `BankClientTests` | ✅ fake bank |
 | AC6 | Any `POST` or `GET` response | Never contains the full card number or the CVV | N6 | | | |
 | AC7 | `GET` with the id of a stored payment | `200`, the AC1 fields, last four only | F4 | | | |
 | AC8 | `GET` with an unknown id | `404` | F4, B1 | | `Returns404IfPaymentNotFound` | ✅ |
 | AC9 | Any processed payment | Logs carry the payment id and outcome, never card data | N7 | | | |
+| AC11 | Any processed payment | A `payments.processed` counter, tagged by status, goes up by one | N7 | | | |
 | AC10 | `docker compose up` | The API and the simulator both start; `/health` returns `200` | N8 | | | |
 
-**Build order:** AC8 → AC4 → AC1 → AC2 → AC3 (complete) → AC5 → AC7 → AC6 → package updates (B11, B12) → AC9 → AC10. Smallest change first; each decision is settled when its criterion comes up.
+**Integration tests** run the gateway against the real simulator in Docker and prove the *(simulator: …)* clauses of AC1, AC2 and AC5. Every other test uses a fake bank or a stubbed `HttpMessageHandler`.
+
+**Build order:** AC8 → AC4 → AC1 → AC2 → AC3 (complete) → AC5 → integration tests → AC7 → AC6 → package updates (B11, B12) → AC9 → AC11 → AC10 → README. Smallest change first; each decision is settled when its criterion comes up.

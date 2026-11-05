@@ -1,6 +1,7 @@
 using System.Net;
 
 using PaymentGateway.Api.Bank;
+using PaymentGateway.Api.Domain;
 
 namespace PaymentGateway.Api.Tests.Unit.Bank;
 
@@ -44,8 +45,57 @@ public class BankClientTests
         Assert.Null(authorization.AuthorizationCode);
     }
 
-    private static BankClient CreateClient(HttpMessageHandler handler)
+    [Fact]
+    public async Task ReportsTheBankUnavailableWhenItReturns503()
     {
-        return new BankClient(new HttpClient(handler) { BaseAddress = new Uri("http://bank.test/") });
+        var handler = new StubHttpMessageHandler(HttpStatusCode.ServiceUnavailable, "{}");
+
+        var exception = await Assert.ThrowsAsync<BankException>(() => CreateClient(handler).AuthorizeAsync(Request, CancellationToken.None));
+
+        Assert.Equal(BankFailure.Unavailable, exception.Failure);
+    }
+
+    [Fact]
+    public async Task ReportsTheBankUnavailableWhenItCannotBeReached()
+    {
+        var handler = new ThrowingHttpMessageHandler(new HttpRequestException("Connection refused"));
+
+        var exception = await Assert.ThrowsAsync<BankException>(() => CreateClient(handler).AuthorizeAsync(Request, CancellationToken.None));
+
+        Assert.Equal(BankFailure.Unavailable, exception.Failure);
+    }
+
+    [Fact]
+    public async Task ReportsATimeoutWhenTheBankDoesNotAnswerInTime()
+    {
+        var client = CreateClient(new HangingHttpMessageHandler(), TimeSpan.FromMilliseconds(50));
+
+        var exception = await Assert.ThrowsAsync<BankException>(() => client.AuthorizeAsync(Request, CancellationToken.None));
+
+        Assert.Equal(BankFailure.TimedOut, exception.Failure);
+    }
+
+    [Theory]
+    [InlineData(HttpStatusCode.BadRequest, """{"error_message":"Not all required properties were sent in the request"}""")]
+    [InlineData(HttpStatusCode.InternalServerError, "{}")]
+    [InlineData(HttpStatusCode.OK, "not json")]
+    public async Task ReportsAnInvalidResponseForAnythingElse(HttpStatusCode statusCode, string body)
+    {
+        var handler = new StubHttpMessageHandler(statusCode, body);
+
+        var exception = await Assert.ThrowsAsync<BankException>(() => CreateClient(handler).AuthorizeAsync(Request, CancellationToken.None));
+
+        Assert.Equal(BankFailure.InvalidResponse, exception.Failure);
+    }
+
+    private static BankClient CreateClient(HttpMessageHandler handler, TimeSpan? timeout = null)
+    {
+        var httpClient = new HttpClient(handler) { BaseAddress = new Uri("http://bank.test/") };
+        if (timeout is not null)
+        {
+            httpClient.Timeout = timeout.Value;
+        }
+
+        return new BankClient(httpClient);
     }
 }

@@ -40,7 +40,27 @@ public class PaymentsController : ControllerBase
                 new { id = processed.Payment.Id },
                 PostPaymentResponse.From(processed.Payment)),
             PaymentOutcome.Rejected rejected => ValidationProblemFor(rejected.Errors),
+            PaymentOutcome.BankFailed failed => BankProblemFor(failed.Failure),
             _ => throw new UnreachableException()
+        };
+    }
+
+    private ObjectResult BankProblemFor(BankFailure failure)
+    {
+        return failure switch
+        {
+            BankFailure.Unavailable => Problem(
+                statusCode: StatusCodes.Status503ServiceUnavailable,
+                title: "The bank is unavailable.",
+                detail: "The payment was not processed and is safe to retry."),
+            BankFailure.TimedOut => Problem(
+                statusCode: StatusCodes.Status504GatewayTimeout,
+                title: "The bank did not respond in time.",
+                detail: "The payment outcome is unknown."),
+            _ => Problem(
+                statusCode: StatusCodes.Status502BadGateway,
+                title: "The bank returned an unexpected response.",
+                detail: "The payment was not completed.")
         };
     }
 

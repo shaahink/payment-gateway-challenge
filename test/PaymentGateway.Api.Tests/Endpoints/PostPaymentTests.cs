@@ -1,9 +1,11 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc;
 
 using PaymentGateway.Api.Bank;
+using PaymentGateway.Api.Domain;
 
 namespace PaymentGateway.Api.Tests.Endpoints;
 
@@ -123,6 +125,42 @@ public class PostPaymentTests : IDisposable
         Assert.NotNull(problem);
         Assert.Contains("$.amount", problem.Errors.Keys);
         Assert.Empty(_factory.Bank.Requests);
+    }
+
+    [Theory]
+    [InlineData(BankFailure.Unavailable, HttpStatusCode.ServiceUnavailable)]
+    [InlineData(BankFailure.TimedOut, HttpStatusCode.GatewayTimeout)]
+    [InlineData(BankFailure.InvalidResponse, HttpStatusCode.BadGateway)]
+    public async Task ReportsABankFailureAsProblemDetailsAndStoresNothing(BankFailure failure, HttpStatusCode expected)
+    {
+        // Arrange
+        _factory.Bank.Throws = new BankException(failure, "The bank failed.");
+
+        // Act
+        var response = await _client.PostAsJsonAsync("/api/Payments", PaymentRequestBody.Valid);
+
+        // Assert
+        Assert.Equal(expected, response.StatusCode);
+        Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);
+        Assert.Null(response.Headers.Location);
+    }
+
+    [Fact]
+    public async Task HidesUnexpectedErrorsBehindProblemDetailsOutsideDevelopment()
+    {
+        // Arrange
+        _factory.Bank.Throws = new InvalidOperationException("Something nobody planned for.");
+        var client = _factory.WithWebHostBuilder(builder => builder.UseEnvironment("Production")).CreateClient();
+
+        // Act
+        var response = await client.PostAsJsonAsync("/api/Payments", PaymentRequestBody.Valid);
+
+        // Assert
+        Assert.Equal(HttpStatusCode.InternalServerError, response.StatusCode);
+        Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);
+        var body = await response.Content.ReadAsStringAsync();
+        Assert.DoesNotContain("Something nobody planned for", body);
+        Assert.DoesNotContain(" at PaymentGateway", body);
     }
 
     public void Dispose()
