@@ -101,8 +101,8 @@ Each criterion is proved by the test named against it. A criterion that depends 
 | AC3 | A request that breaks any F2 rule, or sends a field of the wrong type | `400` problem details naming every failing field in one response. The bank is not called and nothing is stored | F1, F2 | D1 | `RejectsAPaymentWithAnInvalidCardNumber`, `ReportsEveryInvalidFieldInOneResponse`, `RejectsAFieldOfTheWrongTypeWithTheSameProblemShape` | ✅ |
 | AC4 | Each F2 rule at its boundaries | Accepted or rejected as the rule says (validator unit table) | F2 | D4, D8–D11 | `PaymentRequestValidatorTests` | ✅ |
 | AC5 | The bank fails: `503` (simulator: card ending in `0`), a timeout, or anything unexpected | `503`, `504` or `502` as problem details saying whether a retry is safe. Nothing is stored | F5 | D2, D3 | `ReportsABankFailureAsProblemDetailsAndStoresNothing`, `BankClientTests`, `BankSimulatorTests` | ✅ |
-| AC6 | Any `POST` or `GET` response | Never contains the full card number or the CVV | N6 | | | |
-| AC7 | `GET` with the id of a stored payment | `200`, the AC1 fields, last four only | F4 | | | |
+| AC6 | Any `POST` or `GET` response | Never contains the full card number or the CVV | N6 | | `NeverReturnsTheCardNumberOrCvv` | ✅ |
+| AC7 | `GET` with the id of a stored payment | `200`, the AC1 fields, last four only | F4 | | `RetrievesAPaymentSuccessfully`, `BankSimulatorTests` | ✅ |
 | AC8 | `GET` with an unknown id | `404` | F4, B1 | | `Returns404IfPaymentNotFound` | ✅ |
 | AC9 | Any processed payment | Logs carry the payment id and outcome, never card data | N7 | | | |
 | AC11 | Any processed payment | A `payments.processed` counter, tagged by status, goes up by one | N7 | | | |

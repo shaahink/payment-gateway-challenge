@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text;
+using System.Text.Json;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc;
 
@@ -44,6 +45,28 @@ public class PostPaymentTests : IDisposable
 
         var stored = await _client.GetAsync(response.Headers.Location);
         Assert.Equal(HttpStatusCode.OK, stored.StatusCode);
+    }
+
+    [Fact]
+    public async Task NeverReturnsTheCardNumberOrCvv()
+    {
+        // Arrange
+        var request = PaymentRequestBody.Valid with { CardNumber = "4111111111111111", Cvv = "987" };
+        string[] contract = ["id", "status", "cardNumberLastFour", "expiryMonth", "expiryYear", "currency", "amount"];
+
+        // Act
+        var posted = await _client.PostAsJsonAsync("/api/Payments", request);
+        var fetched = await _client.GetAsync(posted.Headers.Location);
+
+        // Assert
+        foreach (var response in new[] { posted, fetched })
+        {
+            var body = await response.Content.ReadAsStringAsync();
+            Assert.DoesNotContain(request.CardNumber, body);
+
+            using var json = JsonDocument.Parse(body);
+            Assert.Equal(contract, json.RootElement.EnumerateObject().Select(property => property.Name));
+        }
     }
 
     [Fact]

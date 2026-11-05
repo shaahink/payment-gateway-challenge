@@ -21,16 +21,17 @@ public class GetPaymentTests : IDisposable
     public async Task RetrievesAPaymentSuccessfully()
     {
         // Arrange
-        var payment = new Payment(Guid.NewGuid(), PaymentStatus.Authorized, "8877", 4, 2027, "GBP", 100);
+        var payment = new Payment(Guid.NewGuid(), PaymentStatus.Declined, "8878", 12, 2027, "EUR", 1050);
         _factory.Services.GetRequiredService<PaymentsRepository>().Add(payment);
 
         // Act
         var response = await _client.GetAsync($"/api/Payments/{payment.Id}");
-        var paymentResponse = await response.Content.ReadFromJsonAsync<PaymentResponseBody>();
 
         // Assert
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        Assert.NotNull(paymentResponse);
+        Assert.Equal(
+            new PaymentResponseBody(payment.Id, "Declined", "8878", 12, 2027, "EUR", 1050),
+            await response.Content.ReadFromJsonAsync<PaymentResponseBody>());
     }
 
     [Fact]
