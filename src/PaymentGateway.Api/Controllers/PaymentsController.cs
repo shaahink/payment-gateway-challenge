@@ -1,7 +1,9 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 
+using PaymentGateway.Api.Models.Requests;
 using PaymentGateway.Api.Models.Responses;
 using PaymentGateway.Api.Services;
+using PaymentGateway.Api.Validation;
 
 namespace PaymentGateway.Api.Controllers;
 
@@ -10,10 +12,12 @@ namespace PaymentGateway.Api.Controllers;
 public class PaymentsController : Controller
 {
     private readonly PaymentsRepository _paymentsRepository;
+    private readonly PaymentRequestValidator _validator;
 
-    public PaymentsController(PaymentsRepository paymentsRepository)
+    public PaymentsController(PaymentsRepository paymentsRepository, PaymentRequestValidator validator)
     {
         _paymentsRepository = paymentsRepository;
+        _validator = validator;
     }
 
     [HttpGet("{id:guid}")]
@@ -22,5 +26,21 @@ public class PaymentsController : Controller
         var payment = _paymentsRepository.Get(id);
 
         return new OkObjectResult(payment);
+    }
+
+    [HttpPost]
+    public ActionResult<PostPaymentResponse> PostPayment(PostPaymentRequest request)
+    {
+        foreach (var error in _validator.Validate(request))
+        {
+            ModelState.AddModelError(error.Field, error.Message);
+        }
+
+        if (!ModelState.IsValid)
+        {
+            return ValidationProblem();
+        }
+
+        throw new NotImplementedException();
     }
 }
