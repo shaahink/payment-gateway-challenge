@@ -1,4 +1,4 @@
-namespace PaymentGateway.Api.Tests;
+namespace PaymentGateway.Api.Tests.Endpoints;
 
 public record PaymentRequestBody(
     string? CardNumber,
