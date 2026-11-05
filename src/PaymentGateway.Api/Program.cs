@@ -19,6 +19,7 @@ builder.Services.AddHealthChecks();
 builder.Services.AddSingleton<PaymentsRepository>();
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddSingleton<PaymentRequestValidator>();
+builder.Services.AddSingleton<PaymentMetrics>();
 builder.Services.AddScoped<PaymentService>();
 builder.Services.AddHttpClient<IBankClient, BankClient>(client =>
 {

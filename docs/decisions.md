@@ -130,3 +130,10 @@ The skeleton pinned 2021–2022 versions, five of them with published advisories
 - **Why:** if the health check followed the bank, a bank outage would make the orchestrator pull every gateway instance, taking down `GET` traffic that still works and the 503s that tell merchants to retry.
 - **Consequence:** `/health` says the process is up. The bank's health shows in the logs and the `payments.processed` counter instead. A test proves `/health` stays `200` while the bank is failing.
 
+## D23. One counter, tagged by outcome
+
+- **Why:** logs say what happened to one payment; a metric says what is happening to all of them. `payment_gateway.payments`, tagged `outcome`, gives the authorisation rate (`Authorized` against `Declined`), the rejection rate (merchant integration problems) and the bank failure rate, the three numbers an on-call engineer would alert on.
+- **How:** `System.Diagnostics.Metrics` through `IMeterFactory`, built into .NET 8, no package. Readable locally with `dotnet-counters monitor --counters PaymentGateway`.
+- **Rejected:** an OpenTelemetry exporter and a `/metrics` endpoint. They are the production step (D12's reasoning: no infrastructure the brief does not ask for), and the counter needs no change to be exported.
+- **Consequence:** the test listens only to meters from its own host's `IMeterFactory`, so parallel tests cannot pollute the count.
+

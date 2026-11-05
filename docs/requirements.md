@@ -95,6 +95,7 @@ Settled ones are recorded in [decisions.md](decisions.md).
 - D20. ✅ A multi-stage, non-root image, added as a service next to the simulator in the existing compose file.
 - D21. ✅ No HTTPS redirection in the app: TLS ends at the load balancer.
 - D22. ✅ `/health` is liveness only and never depends on the bank.
+- D23. ✅ One outcome counter on `System.Diagnostics.Metrics`, exported later by OpenTelemetry.
 
 ## Acceptance criteria
 
@@ -111,7 +112,7 @@ Each criterion is proved by the test named against it. A criterion that depends 
 | AC7 | `GET` with the id of a stored payment | `200`, the AC1 fields, last four only | F4 | | `RetrievesAPaymentSuccessfully`, `BankSimulatorTests` | ✅ |
 | AC8 | `GET` with an unknown id | `404` | F4, B1 | | `Returns404IfPaymentNotFound` | ✅ |
 | AC9 | Any processed payment | Logs carry the payment id and outcome, never card data | N7 | | `LoggingTests`, `CardDataFormattingTests` | ✅ |
-| AC11 | Any processed payment | A `payments.processed` counter, tagged by status, goes up by one | N7 | | | |
+| AC11 | Any payment request | The `payment_gateway.payments` counter goes up by one, tagged with its outcome: `Authorized`, `Declined`, `Rejected` or `Bank<failure>` | N7 | | `CountsEveryPaymentByOutcome` | ✅ |
 | AC10 | `docker compose up` | The API and the simulator both start; `/health` returns `200` | N8 | | `ReportsHealthyEvenWhileTheBankIsDown`, `docker compose up` by hand | ✅ |
 
 **Integration tests** run the gateway against the real simulator in Docker and prove the *(simulator: …)* clauses of AC1, AC2 and AC5. Every other test uses a fake bank or a stubbed `HttpMessageHandler`. They live in their own project, `PaymentGateway.Api.IntegrationTests`, tagged `Category=Integration`: start the simulator first (`docker compose up -d`), or skip them with `dotnet test --filter Category!=Integration`.

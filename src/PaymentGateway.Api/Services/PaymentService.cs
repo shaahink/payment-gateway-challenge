@@ -10,17 +10,20 @@ public class PaymentService
     private readonly PaymentRequestValidator _validator;
     private readonly IBankClient _bank;
     private readonly PaymentsRepository _repository;
+    private readonly PaymentMetrics _metrics;
     private readonly ILogger<PaymentService> _logger;
 
     public PaymentService(
         PaymentRequestValidator validator,
         IBankClient bank,
         PaymentsRepository repository,
+        PaymentMetrics metrics,
         ILogger<PaymentService> logger)
     {
         _validator = validator;
         _bank = bank;
         _repository = repository;
+        _metrics = metrics;
         _logger = logger;
     }
 
@@ -35,6 +38,7 @@ public class PaymentService
         if (errors.Count > 0)
         {
             _logger.LogInformation("Payment rejected on {Fields}", errors.Select(e => e.Field));
+            _metrics.Record("Rejected");
             return new PaymentOutcome.Rejected(errors);
         }
 
@@ -58,6 +62,7 @@ public class PaymentService
         catch (BankException exception)
         {
             _logger.LogWarning(exception, "Payment {PaymentId} not processed, bank {Failure}", paymentId, exception.Failure);
+            _metrics.Record($"Bank{exception.Failure}");
             return new PaymentOutcome.BankFailed(exception.Failure);
         }
 
@@ -72,6 +77,7 @@ public class PaymentService
 
         _repository.Add(payment);
         _logger.LogInformation("Payment {PaymentId} processed: {Status}", payment.Id, payment.Status);
+        _metrics.Record(payment.Status.ToString());
 
         return new PaymentOutcome.Processed(payment);
     }
