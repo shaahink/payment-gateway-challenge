@@ -102,3 +102,14 @@ The skeleton pinned 2021–2022 versions, five of them with published advisories
 - **Rejected:** moving to net10. **.NET 8 support ends on 10 November 2026**, so it is the next step, but a framework move is a deliberate change of its own, not part of a take-home.
 - **Consequence:** `dotnet list package --vulnerable --include-transitive` reports nothing in any project, the build has no warnings, and all 63 tests pass unchanged. Line coverage of the in-process tests is 97.9%.
 
+## D18. JSON logs with scopes, chosen by configuration
+
+- **Why:** a log platform needs fields, not sentences. The JSON console formatter writes each template placeholder (`PaymentId`, `Status`) as its own field, and with scopes on, every line carries the request's `TraceId`. One id then joins the merchant's request, the bank call with its latency and status, and the outcome.
+- **How:** `Logging:Console:FormatterName` is `json` in `appsettings.json` and `simple` in `appsettings.Development.json`, where people read the console. No code, no package.
+- **Rejected:** Serilog (D12), and a hand-written correlation-id middleware, which ASP.NET's `TraceId` scope already makes unnecessary.
+
+## D19. Records that hold card data mask it in `ToString()`
+
+- **Why:** a record's compiler-generated `ToString()` prints every property. `BankPaymentRequest` and `BankWireRequest` carry the full card number and CVV, so one `_logger.LogInformation("{Request}", request)` would put a PAN in the logs.
+- **Consequence:** both print `CardNumber = ****1111, … Cvv = ***`. The logging tests send a known card number and CVV down every path and assert neither reaches any log entry. A mutation check confirmed the layering: with a careless request log added, the tests fail before the masking and pass after it.
+
