@@ -113,3 +113,20 @@ The skeleton pinned 2021–2022 versions, five of them with published advisories
 - **Why:** a record's compiler-generated `ToString()` prints every property. `BankPaymentRequest` and `BankWireRequest` carry the full card number and CVV, so one `_logger.LogInformation("{Request}", request)` would put a PAN in the logs.
 - **Consequence:** both print `CardNumber = ****1111, … Cvv = ***`. The logging tests send a known card number and CVV down every path and assert neither reaches any log entry. A mutation check confirmed the layering: with a careless request log added, the tests fail before the masking and pass after it.
 
+## D20. A multi-stage, non-root image beside the simulator
+
+- **Why:** the SDK builds, the ASP.NET runtime image runs (221 MB), and the process runs as the image's built-in non-root `app` user. Restoring from the `.csproj` alone first means a code change does not re-download packages.
+- **How:** `docker compose up -d --build` starts the simulator and the gateway on `http://localhost:5000`. The gateway reaches the bank by its service name (`Bank__BaseUrl=http://bank_simulator:8080/`), and it runs as Production, so it logs JSON and hides exception details.
+- **Rejected:** a separate compose file. The brief's file is where a reviewer looks, and their `bank_simulator` service is left exactly as it was, including the obsolete `version` key.
+- **Consequence:** no `HEALTHCHECK` in the image, because the runtime image has no `curl`. The orchestrator (an ECS target group, a Kubernetes probe) checks `/health` over HTTP instead.
+
+## D21. No HTTPS redirection inside the app
+
+- **Why:** in a container, TLS ends at the load balancer and the app listens on plain HTTP behind it. `UseHttpsRedirection` had no HTTPS port to redirect to and logged a warning on every request.
+- **Consequence:** HTTPS and HSTS belong to the edge. Merchant authentication (API keys or mutual TLS) belongs there too, and is out of scope here.
+
+## D22. `/health` is liveness, never the bank's health
+
+- **Why:** if the health check followed the bank, a bank outage would make the orchestrator pull every gateway instance, taking down `GET` traffic that still works and the 503s that tell merchants to retry.
+- **Consequence:** `/health` says the process is up. The bank's health shows in the logs and the `payments.processed` counter instead. A test proves `/health` stays `200` while the bank is failing.
+
