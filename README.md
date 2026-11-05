@@ -26,17 +26,17 @@ To run the gateway from an IDE instead, start only the simulator (`docker compos
 
 ```bash
 docker compose up -d bank_simulator
-dotnet test                                      # all 73 tests
-dotnet test --filter Category!=Integration       # the 70 that need no Docker
+dotnet test                                      # all 79 tests
+dotnet test --filter Category!=Integration       # the 76 that need no Docker
 ```
 
 | Layer | Tests | What it proves |
 | --- | --- | --- |
-| Unit | 50 | Every validation rule at its boundaries; the bank client's wire format and its failure mapping, against a stubbed `HttpMessageHandler`; card data masked in `ToString()` |
-| Endpoint | 20 | The HTTP contract in-process (`WebApplicationFactory`) with a fake bank: status codes, problem details, `Location`, no card data in responses or logs, the outcome counter, `/health` |
+| Unit | 53 | Every validation rule at its boundaries; the bank client's wire format and its failure mapping, against a stubbed `HttpMessageHandler`; card data masked in `ToString()` |
+| Endpoint | 23 | The HTTP contract in-process (`WebApplicationFactory`) with a fake bank: status codes, problem details, `Location`, no card data in responses or logs, the outcome counter, `/health` |
 | Integration | 3 | The real gateway against the real simulator, with no test doubles: odd, even and `0` cards |
 
-Built test-first against the acceptance criteria in [docs/requirements.md](docs/requirements.md). Each criterion names the test that proves it. Tests that went green on first run (because an earlier step had already built the behaviour) were checked by mutation: the code was broken on purpose to confirm the test would catch it. Line coverage of the in-process tests is 98.1%.
+Built test-first against the acceptance criteria in [docs/requirements.md](docs/requirements.md). Each criterion names the test that proves it. Tests that went green on first run (because an earlier step had already built the behaviour) were checked by mutation: the code was broken on purpose to confirm the test would catch it. Line coverage of the in-process tests is 98.9%.
 
 ## The API
 
@@ -51,9 +51,9 @@ Built test-first against the acceptance criteria in [docs/requirements.md](docs/
 | Authorized | `201 Created` + `Location` | The payment: `id`, `status`, `cardNumberLastFour`, expiry, `currency`, `amount` |
 | Declined | `201 Created` + `Location` | The same, with `status: "Declined"` |
 | Rejected | `400 Bad Request` | Validation problem details, titled "The payment was rejected.", naming every failing field as the merchant sent it (`cardNumber`). The bank is not called and nothing is stored |
-| Bank unavailable | `503 Service Unavailable` | Problem details: not processed, safe to retry |
-| Bank timed out | `504 Gateway Timeout` | Problem details: outcome unknown |
-| Bank error | `502 Bad Gateway` | Problem details |
+| Bank unavailable | `503 Service Unavailable` | Problem details with the `paymentId`: not processed, safe to retry |
+| Bank timed out | `504 Gateway Timeout` | Problem details with the `paymentId`: outcome unknown |
+| Bank error, or the connection dropped mid-call | `502 Bad Gateway` | Problem details with the `paymentId`: outcome could not be confirmed |
 
 `GET /api/payments/{id}` returns `200` with the stored payment, or `404`.
 
@@ -75,7 +75,7 @@ Storage/       PaymentsRepository     in memory
 
 The decisions behind each choice, and the alternatives turned down, are in [docs/decisions.md](docs/decisions.md). The ones most worth reading:
 
-- **A bank failure is three failures** (D2). A `503` means the bank did not process the payment, so a retry is safe. A timeout means the outcome is unknown, and a retry could charge the shopper twice. The merchant is told which.
+- **A bank failure is three failures** (D2). A `503`, or a connection refused before anything was sent, means the bank did not process the payment, so a retry is safe. A timeout or a connection dropped mid-call means the outcome is unknown, and a retry could charge the shopper twice. The merchant is told which, with a `paymentId` to quote.
 - **The bank call ignores the merchant's disconnect** (D13). Cancelling it could abandon a payment the bank has already authorised. The `HttpClient` timeout bounds it instead.
 - **`201 Created` for Declined as well as Authorized** (D6). A payment resource exists either way; `status` carries the bank's decision.
 - **No card data anywhere** (D19, AC6, AC9). Records holding the PAN and CVV mask them in `ToString()`, and tests send a known card number down every path and assert it reaches no response and no log.

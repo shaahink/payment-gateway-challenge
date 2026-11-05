@@ -4,14 +4,16 @@ using System.Text;
 using System.Text.Json;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.DependencyInjection;
 
 using PaymentGateway.Api.Bank;
 using PaymentGateway.Api.Controllers;
 using PaymentGateway.Api.Domain;
+using PaymentGateway.Api.Storage;
 
 namespace PaymentGateway.Api.Tests.Endpoints;
 
-public class PostPaymentTests : IDisposable
+public sealed class PostPaymentTests : IDisposable
 {
     private readonly PaymentGatewayFactory _factory = new();
     private readonly HttpClient _client;
@@ -43,9 +45,11 @@ public class PostPaymentTests : IDisposable
         Assert.Equal(request.Amount, payment.Amount);
         Assert.Single(_factory.Bank.Requests);
         Assert.Equal($"/api/Payments/{payment.Id}", response.Headers.Location?.AbsolutePath);
+        var stored = _factory.Services.GetRequiredService<PaymentsRepository>().Get(payment.Id);
+        Assert.Equal("0bb07405-6d44-4b50-a14f-7ae0beff13ad", stored?.AuthorizationCode);
 
-        var stored = await _client.GetAsync(response.Headers.Location);
-        Assert.Equal(HttpStatusCode.OK, stored.StatusCode);
+        var fetched = await _client.GetAsync(response.Headers.Location);
+        Assert.Equal(HttpStatusCode.OK, fetched.StatusCode);
     }
 
     [Fact]
@@ -185,6 +189,27 @@ public class PostPaymentTests : IDisposable
         Assert.Equal(expected, response.StatusCode);
         Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);
         Assert.Null(response.Headers.Location);
+
+        var problem = await response.Content.ReadFromJsonAsync<ProblemDetails>();
+        var paymentId = Assert.IsType<JsonElement>(problem?.Extensions["paymentId"]).GetGuid();
+        var lookup = await _client.GetAsync($"/api/Payments/{paymentId}");
+        Assert.Equal(HttpStatusCode.NotFound, lookup.StatusCode);
+    }
+
+    [Fact]
+    public async Task RejectsANumberSentAsAString()
+    {
+        // Arrange
+        var json = """{"cardNumber":"2222405343248877","expiryMonth":4,"expiryYear":2027,"currency":"GBP","amount":"100","cvv":"123"}""";
+
+        // Act
+        var response = await _client.PostAsync("/api/Payments", new StringContent(json, Encoding.UTF8, "application/json"));
+
+        // Assert
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        var problem = await response.Content.ReadFromJsonAsync<ValidationProblemDetails>();
+        Assert.Equal(["$.amount"], problem?.Errors.Keys);
+        Assert.Empty(_factory.Bank.Requests);
     }
 
     [Fact]

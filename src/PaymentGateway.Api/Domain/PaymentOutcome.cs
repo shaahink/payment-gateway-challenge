@@ -6,5 +6,5 @@ public abstract record PaymentOutcome
 
     public sealed record Rejected(IReadOnlyList<ValidationError> Errors) : PaymentOutcome;
 
-    public sealed record BankFailed(BankFailure Failure) : PaymentOutcome;
+    public sealed record BankFailed(Guid PaymentId, BankFailure Failure) : PaymentOutcome;
 }

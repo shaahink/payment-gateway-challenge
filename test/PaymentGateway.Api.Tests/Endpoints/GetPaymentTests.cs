@@ -7,7 +7,7 @@ using PaymentGateway.Api.Storage;
 
 namespace PaymentGateway.Api.Tests.Endpoints;
 
-public class GetPaymentTests : IDisposable
+public sealed class GetPaymentTests : IDisposable
 {
     private readonly PaymentGatewayFactory _factory = new();
     private readonly HttpClient _client;
@@ -21,7 +21,7 @@ public class GetPaymentTests : IDisposable
     public async Task RetrievesAPaymentSuccessfully()
     {
         // Arrange
-        var payment = new Payment(Guid.NewGuid(), PaymentStatus.Declined, "8878", 12, 2027, "EUR", 1050);
+        var payment = new Payment(Guid.NewGuid(), PaymentStatus.Declined, "8878", 12, 2027, "EUR", 1050, "auth-code");
         _factory.Services.GetRequiredService<PaymentsRepository>().Add(payment);
 
         // Act

@@ -1,3 +1,3 @@
 namespace PaymentGateway.Api.Bank;
 
-internal record BankWireResponse(bool Authorized, string? AuthorizationCode);
+internal record BankWireResponse(bool? Authorized, string? AuthorizationCode);

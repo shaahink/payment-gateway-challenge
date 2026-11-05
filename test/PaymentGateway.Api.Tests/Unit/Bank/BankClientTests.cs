@@ -58,7 +58,7 @@ public class BankClientTests
     [Fact]
     public async Task ReportsTheBankUnavailableWhenItCannotBeReached()
     {
-        var handler = new ThrowingHttpMessageHandler(new HttpRequestException("Connection refused"));
+        var handler = new ThrowingHttpMessageHandler(new HttpRequestException(HttpRequestError.ConnectionError, "Connection refused"));
 
         var exception = await Assert.ThrowsAsync<BankException>(() => CreateClient(handler).AuthorizeAsync(Request, CancellationToken.None));
 
@@ -75,7 +75,19 @@ public class BankClientTests
         Assert.Equal(BankFailure.TimedOut, exception.Failure);
     }
 
+    [Fact]
+    public async Task DoesNotReportASafeRetryWhenTheConnectionDropsAfterSending()
+    {
+        var handler = new ThrowingHttpMessageHandler(new HttpRequestException(HttpRequestError.ResponseEnded, "The response ended prematurely."));
+
+        var exception = await Assert.ThrowsAsync<BankException>(() => CreateClient(handler).AuthorizeAsync(Request, CancellationToken.None));
+
+        Assert.Equal(BankFailure.InvalidResponse, exception.Failure);
+    }
+
     [Theory]
+    [InlineData(HttpStatusCode.OK, "{}")]
+    [InlineData(HttpStatusCode.OK, """{"error":"oops"}""")]
     [InlineData(HttpStatusCode.BadRequest, """{"error_message":"Not all required properties were sent in the request"}""")]
     [InlineData(HttpStatusCode.InternalServerError, "{}")]
     [InlineData(HttpStatusCode.OK, "not json")]

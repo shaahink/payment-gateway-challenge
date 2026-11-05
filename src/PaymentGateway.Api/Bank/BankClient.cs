@@ -40,9 +40,14 @@ public class BankClient : IBankClient
         {
             throw new BankException(BankFailure.TimedOut, "The bank did not respond in time.", exception);
         }
-        catch (HttpRequestException exception)
+        catch (HttpRequestException exception) when (exception.HttpRequestError is
+            HttpRequestError.NameResolutionError or HttpRequestError.ConnectionError or HttpRequestError.SecureConnectionError)
         {
             throw new BankException(BankFailure.Unavailable, "The bank could not be reached.", exception);
+        }
+        catch (HttpRequestException exception)
+        {
+            throw new BankException(BankFailure.InvalidResponse, "The connection to the bank failed after the request was sent.", exception);
         }
     }
 
@@ -68,13 +73,13 @@ public class BankClient : IBankClient
             throw new BankException(BankFailure.InvalidResponse, "The bank's response could not be read.", exception);
         }
 
-        if (wireResponse is null)
+        if (wireResponse?.Authorized is not { } authorized)
         {
-            throw new BankException(BankFailure.InvalidResponse, "The bank returned an empty response.");
+            throw new BankException(BankFailure.InvalidResponse, "The bank's response did not say whether the payment was authorised.");
         }
 
         return new BankAuthorization(
-            wireResponse.Authorized,
+            authorized,
             string.IsNullOrEmpty(wireResponse.AuthorizationCode) ? null : wireResponse.AuthorizationCode);
     }
 }

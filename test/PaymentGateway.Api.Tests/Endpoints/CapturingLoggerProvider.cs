@@ -4,7 +4,7 @@ using Microsoft.Extensions.Logging;
 
 namespace PaymentGateway.Api.Tests.Endpoints;
 
-public class CapturingLoggerProvider : ILoggerProvider
+public sealed class CapturingLoggerProvider : ILoggerProvider
 {
     private readonly ConcurrentQueue<string> _entries = new();
 

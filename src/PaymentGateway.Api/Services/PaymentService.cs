@@ -5,7 +5,7 @@ using PaymentGateway.Api.Storage;
 
 namespace PaymentGateway.Api.Services;
 
-public class PaymentService
+public partial class PaymentService
 {
     private readonly PaymentRequestValidator _validator;
     private readonly IBankClient _bank;
@@ -37,7 +37,7 @@ public class PaymentService
         var errors = _validator.Validate(request);
         if (errors.Count > 0)
         {
-            _logger.LogInformation("Payment rejected on {Fields}", errors.Select(e => e.Field));
+            LogRejected(errors.Select(error => error.Field));
             _metrics.Record("Rejected");
             return new PaymentOutcome.Rejected(errors);
         }
@@ -61,9 +61,9 @@ public class PaymentService
         }
         catch (BankException exception)
         {
-            _logger.LogWarning(exception, "Payment {PaymentId} not processed, bank {Failure}", paymentId, exception.Failure);
+            LogBankFailed(exception, paymentId, exception.Failure);
             _metrics.Record($"Bank{exception.Failure}");
-            return new PaymentOutcome.BankFailed(exception.Failure);
+            return new PaymentOutcome.BankFailed(paymentId, exception.Failure);
         }
 
         var payment = new Payment(
@@ -73,12 +73,22 @@ public class PaymentService
             bankRequest.ExpiryMonth,
             bankRequest.ExpiryYear,
             bankRequest.Currency,
-            bankRequest.Amount);
+            bankRequest.Amount,
+            authorization.AuthorizationCode);
 
         _repository.Add(payment);
-        _logger.LogInformation("Payment {PaymentId} processed: {Status}", payment.Id, payment.Status);
+        LogProcessed(payment.Id, payment.Status);
         _metrics.Record(payment.Status.ToString());
 
         return new PaymentOutcome.Processed(payment);
     }
+
+    [LoggerMessage(EventId = 1, Level = LogLevel.Information, Message = "Payment rejected on {Fields}")]
+    private partial void LogRejected(IEnumerable<string> fields);
+
+    [LoggerMessage(EventId = 2, Level = LogLevel.Warning, Message = "Payment {PaymentId} not processed, bank {Failure}")]
+    private partial void LogBankFailed(Exception exception, Guid paymentId, BankFailure failure);
+
+    [LoggerMessage(EventId = 3, Level = LogLevel.Information, Message = "Payment {PaymentId} processed: {Status}")]
+    private partial void LogProcessed(Guid paymentId, PaymentStatus status);
 }

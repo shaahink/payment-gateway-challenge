@@ -2,7 +2,7 @@ using Microsoft.AspNetCore.Mvc.Testing;
 
 namespace PaymentGateway.Api.IntegrationTests;
 
-public class BankSimulatorFixture : IDisposable
+public sealed class BankSimulatorFixture : IDisposable
 {
     private static readonly Uri SimulatorUrl = new("http://localhost:8080/");
 

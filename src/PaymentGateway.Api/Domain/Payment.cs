@@ -7,4 +7,5 @@ public record Payment(
     int ExpiryMonth,
     int ExpiryYear,
     string Currency,
-    int Amount);
+    int Amount,
+    string? AuthorizationCode);

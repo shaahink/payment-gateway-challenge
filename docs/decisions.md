@@ -13,13 +13,13 @@ Numbered to match [requirements.md](requirements.md). Each records the choice, w
 
 | The bank | We know | The merchant gets |
 | --- | --- | --- |
-| Returns `503`, or cannot be reached | It did not process the payment | `503`: safe to retry |
+| Returns `503`, or the connection is refused before anything is sent | It did not process the payment | `503`: safe to retry |
 | Does not answer within the timeout | Nothing: it may have authorised | `504`: outcome unknown |
-| Returns anything else (`400`, `500`, an unreadable body) | Something is wrong on one side | `502` |
+| Drops the connection after the request was sent, returns anything else (`400`, `500`), or a body without `authorized` | Not for certain | `502`: outcome could not be confirmed |
 
 - **Why:** retry safety is what the merchant needs to know, and it differs between the three. Each response is problem details saying which case it is.
 - **Rejected:** one `502` for everything, which hides the one case where a retry could charge the shopper twice.
-- **Consequence:** nothing is stored, because `GET` only knows `Authorized` and `Declined`. In production a timeout would be stored as `Pending` and reconciled with the bank, and an idempotency key (D5) would make retries safe. A connection dropped *after* the request was sent is really "unknown" too; .NET 8's `HttpRequestException.HttpRequestError` could separate it from "refused", and here both count as unavailable.
+- **Consequence:** nothing is stored, because `GET` only knows `Authorized` and `Declined`. In production a timeout would be stored as `Pending` and reconciled with the bank, and an idempotency key (D5) would make retries safe. Every bank-failure response carries the `paymentId`, which matches the log line, so the merchant has something to quote. Connection failures are split with .NET 8's `HttpRequestException.HttpRequestError`: only a failure to connect counts as "not processed"; a connection that drops once the request is on the wire could have been authorised.
 
 ## D3. A bank `400` is our fault, not the merchant's
 
@@ -72,7 +72,7 @@ Numbered to match [requirements.md](requirements.md). Each records the choice, w
 
 ## D12. Built-in logging with message templates
 
-- **Why:** `ILogger` message templates are already structured: each placeholder becomes a named field. One line per outcome, carrying the payment id and status.
+- **Why:** `ILogger` message templates are already structured: each placeholder becomes a named field. One line per outcome, carrying the payment id and status. The three log lines are source-generated `[LoggerMessage]` methods, so the templates are parsed once, arguments are not boxed, and nothing is formatted when the level is off.
 - **Rejected:** Serilog. It earns its place with sinks and enrichers, and none are in scope.
 - **Consequence:** log lines name fields, never values from the card. A rejection logs which fields failed, not what was sent.
 
@@ -91,7 +91,7 @@ Numbered to match [requirements.md](requirements.md). Each records the choice, w
 ## D15. The bank client is a typed `HttpClient` with its own wire records
 
 - **Why:** the bank's contract (snake_case, `expiry_date` as `MM/YYYY`) stays inside `Bank/`, and `JsonNamingPolicy.SnakeCaseLower` maps it without attributes. `IHttpClientFactory` manages connection lifetimes.
-- **Consequence:** a change on the bank's side touches two internal records. Tests stub `HttpMessageHandler`, the seam `HttpClient` is built around, so no mocking library is needed. The simulator's empty `authorization_code` on a decline becomes `null` in the domain.
+- **Consequence:** a change on the bank's side touches two internal records. Tests stub `HttpMessageHandler`, the seam `HttpClient` is built around, so no mocking library is needed. The simulator's empty `authorization_code` on a decline becomes `null` in the domain. `authorized` is read as a nullable `bool`, so a `200` that omits it is an invalid response, not a silent decline.
 
 ## D16. Unexpected errors are problem details, never a stack trace
 
@@ -150,3 +150,17 @@ The skeleton pinned 2021–2022 versions, five of them with published advisories
 - **Rejected:** an OpenTelemetry exporter and a `/metrics` endpoint. They are the production step (D12's reasoning: no infrastructure the brief does not ask for), and the counter needs no change to be exported.
 - **Consequence:** the test listens only to meters from its own host's `IMeterFactory`, so parallel tests cannot pollute the count.
 
+## D24. The bank's authorisation code is stored, not returned
+
+- **Why:** it is the reference for reconciliation and disputes, and the bank only sends it once.
+- **Consequence:** it lives on the stored `Payment`. The merchant-facing responses keep exactly the fields the brief lists.
+
+## D25. Numbers must be JSON numbers
+
+- **Why:** ASP.NET's web defaults accept `"amount": "100"` as 100. The brief says the amount must be an integer, and a string is not one.
+- **Consequence:** `JsonNumberHandling.Strict`. A number sent as a string is a `400`, keyed `$.amount` like any other type error (D1).
+
+## D26. Missing bank settings stop the app at startup
+
+- **Why:** without `Bank:BaseUrl` or a positive `Bank:TimeoutSeconds`, every payment would fail with a `500`. Better to fail once, at deploy, with a message that names the setting.
+- **Consequence:** `Program.cs` reads both before building the app and throws if either is missing. A test starts the app with each one blanked.

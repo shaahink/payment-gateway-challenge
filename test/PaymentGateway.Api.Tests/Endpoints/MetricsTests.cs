@@ -7,7 +7,7 @@ using PaymentGateway.Api.Domain;
 
 namespace PaymentGateway.Api.Tests.Endpoints;
 
-public class MetricsTests : IDisposable
+public sealed class MetricsTests : IDisposable
 {
     private readonly PaymentGatewayFactory _factory = new();
     private readonly HttpClient _client;

@@ -6,7 +6,7 @@ using PaymentGateway.Api.Domain;
 
 namespace PaymentGateway.Api.Tests.Endpoints;
 
-public class LoggingTests : IDisposable
+public sealed class LoggingTests : IDisposable
 {
     private const string CardNumber = "4111111111111111";
     private const string Cvv = "9871";

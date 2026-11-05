@@ -96,6 +96,9 @@ Settled ones are recorded in [decisions.md](decisions.md).
 - D21. ✅ No HTTPS redirection in the app: TLS ends at the load balancer.
 - D22. ✅ `/health` is liveness only and never depends on the bank.
 - D23. ✅ One outcome counter on `System.Diagnostics.Metrics`, exported later by OpenTelemetry.
+- D24. ✅ The bank's authorisation code is stored for reconciliation, not returned.
+- D25. ✅ Numbers sent as strings are rejected.
+- D26. ✅ Missing bank settings stop the app at startup.
 
 ## Acceptance criteria
 

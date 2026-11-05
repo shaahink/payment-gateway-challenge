@@ -10,12 +10,20 @@ using PaymentGateway.Api.Storage;
 
 var builder = WebApplication.CreateBuilder(args);
 
+var bankBaseUrl = builder.Configuration["Bank:BaseUrl"];
+var bankTimeoutSeconds = builder.Configuration.GetValue<int?>("Bank:TimeoutSeconds");
+if (string.IsNullOrWhiteSpace(bankBaseUrl) || bankTimeoutSeconds is not > 0)
+{
+    throw new InvalidOperationException("Bank:BaseUrl and a positive Bank:TimeoutSeconds must be configured.");
+}
+
 // Add services to the container.
 
 builder.Services.AddControllers(options => options.SuppressImplicitRequiredAttributeForNonNullableReferenceTypes = true)
     .AddJsonOptions(options =>
     {
         options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+        options.JsonSerializerOptions.NumberHandling = JsonNumberHandling.Strict;
         options.AllowInputFormatterExceptionMessages = false;
     })
     .ConfigureApiBehaviorOptions(options => options.InvalidModelStateResponseFactory = context =>
@@ -39,8 +47,8 @@ builder.Services.AddSingleton<PaymentMetrics>();
 builder.Services.AddScoped<PaymentService>();
 builder.Services.AddHttpClient<IBankClient, BankClient>(client =>
 {
-    client.BaseAddress = new Uri(builder.Configuration["Bank:BaseUrl"]!);
-    client.Timeout = TimeSpan.FromSeconds(builder.Configuration.GetValue<int>("Bank:TimeoutSeconds"));
+    client.BaseAddress = new Uri(bankBaseUrl);
+    client.Timeout = TimeSpan.FromSeconds(bankTimeoutSeconds.Value);
 });
 
 var app = builder.Build();
