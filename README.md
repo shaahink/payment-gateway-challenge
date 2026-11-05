@@ -107,4 +107,8 @@ The decisions behind each choice, and the alternatives turned down, are in [docs
 
 ## Repository
 
-The skeleton's issues found at the start (a GET that returned `204` for an unknown id, `int` card fields that overflow and lose leading zeros, a public mutable list, vulnerable packages) are listed in [docs/requirements.md](docs/requirements.md) with what resolved each. The commit history follows the build order: each acceptance criterion went red, then green, then got committed.
+The skeleton's issues found at the start (a GET that returned `204` for an unknown id, `int` card fields that overflow and lose leading zeros, a public mutable list, vulnerable packages) are listed in [docs/requirements.md](docs/requirements.md) with what resolved each. The commit history follows the build order: each acceptance criterion went red, then green, then got committed. The skeleton as received is tagged `skeleton`, so comparing `skeleton...main` shows everything that changed.
+
+## How this was built
+
+I paired with Claude Code, an AI coding assistant, the way I work day to day. I directed it: the requirements map, the acceptance criteria, the build order and every decision in `docs/decisions.md` were settled step by step, with the assistant proposing options and me choosing. It wrote most of the code and tests to that plan, and I reviewed each change before it was committed. A test that passed without first failing was not trusted until a deliberate break proved it could catch something.
