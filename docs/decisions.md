@@ -2,6 +2,13 @@
 
 Numbered to match [requirements.md](requirements.md). Each records the choice, why, and what was turned down.
 
+## D1. A rejection is a `400` validation problem, and nothing is stored
+
+- **Why:** the brief says a rejected payment is one where no payment could be created, and `GET` only ever returns `Authorized` or `Declined`, so a rejection has no id and no record. A `400` with problem details is the standard way to say "fix the request".
+- **How:** the title is "The payment was rejected.", so the brief's word is in the body. Every failing field comes back in one response, keyed by the name the merchant sent (`cardNumber`, not `CardNumber`). A field of the wrong type (`"amount": "abc"`) is rejected by model binding before the validator runs, and comes back in the same shape, keyed by its JSON path (`$.amount`) with a generic message, so no .NET type names reach the merchant. A missing or `null` body is rejected the same way.
+- **Rejected:** `201` or `200` with `status: "Rejected"`, which would create the record the brief says must not exist. `422`, which is defensible but less widely expected than `400` for validation.
+- **Consequence:** a merchant tells a rejection from a bank decision by the status code. The casing is converted at the HTTP boundary (the controller), so the validator keeps using C# property names.
+
 ## D2. A bank failure is three failures, and none is stored
 
 | The bank | We know | The merchant gets |
@@ -24,6 +31,12 @@ Numbered to match [requirements.md](requirements.md). Each records the choice, w
 - **Why:** the brief caps it at three ISO codes. These are the obvious three for a London gateway, and GBP is the brief's own example.
 - **Rejected:** a zero-decimal currency such as JPY. It would make the minor-units rule more interesting without changing any requirement.
 - **Consequence:** any other code, including a valid ISO one, is rejected.
+
+## D5. Idempotency and retries are out of scope, but designed for
+
+- **Why:** a payment is not idempotent. Retrying one the bank may have authorised can charge the shopper twice, so the gateway retries nothing itself, and its errors tell the merchant when a retry is safe (D2).
+- **Where it would go:** an `Idempotency-Key` header on `POST`, stored with the payment under a unique constraint. A repeat with the same key returns the original result instead of calling the bank again. The payment id is already generated before the bank call, which is where the key would be bound to it.
+- **Consequence:** until then, a merchant retry after a `504` is the one unsafe case, and the README says so.
 
 ## D6. `POST` returns `201 Created` with a `Location` header
 

@@ -73,11 +73,11 @@ Baseline `08fafb4`: build passes with 4 warnings; tests run **1 passed, 1 failed
 
 Settled ones are recorded in [decisions.md](decisions.md).
 
-- D1. Status code for `Rejected`: `400` with the errors, and nothing stored (per F1 and F4).
+- D1. ✅ `Rejected` is a `400` validation problem titled "The payment was rejected.", keyed by the request's camelCase field names. Nothing is stored.
 - D2. ✅ Bank `503` → `503`, timeout → `504`, anything else → `502`. Nothing is stored.
 - D3. ✅ A bank `400` is a `502`: our fault or the bank's, never the merchant's.
 - D4. ✅ GBP, EUR, USD.
-- D5. Idempotency and retries: out of scope for phase one, but say where they would go.
+- D5. ✅ Idempotency and retries are out of scope for phase one; where they would go is recorded.
 - D6. ✅ `POST` returns `201 Created` with a `Location` header, for Authorized and Declined alike.
 - D7. ✅ Hand-written validation, no library.
 - D8. ✅ No Luhn check.
@@ -112,8 +112,8 @@ Each criterion is proved by the test named against it. A criterion that depends 
 | AC7 | `GET` with the id of a stored payment | `200`, the AC1 fields, last four only | F4 | | `RetrievesAPaymentSuccessfully`, `BankSimulatorTests` | ✅ |
 | AC8 | `GET` with an unknown id | `404` | F4, B1 | | `Returns404IfPaymentNotFound` | ✅ |
 | AC9 | Any processed payment | Logs carry the payment id and outcome, never card data | N7 | | `LoggingTests`, `CardDataFormattingTests` | ✅ |
-| AC11 | Any payment request | The `payment_gateway.payments` counter goes up by one, tagged with its outcome: `Authorized`, `Declined`, `Rejected` or `Bank<failure>` | N7 | | `CountsEveryPaymentByOutcome` | ✅ |
 | AC10 | `docker compose up` | The API and the simulator both start; `/health` returns `200` | N8 | | `ReportsHealthyEvenWhileTheBankIsDown`, `docker compose up` by hand | ✅ |
+| AC11 | Any payment request | The `payment_gateway.payments` counter goes up by one, tagged with its outcome: `Authorized`, `Declined`, `Rejected` or `Bank<failure>` | N7 | | `CountsEveryPaymentByOutcome` | ✅ |
 
 **Integration tests** run the gateway against the real simulator in Docker and prove the *(simulator: …)* clauses of AC1, AC2 and AC5. Every other test uses a fake bank or a stubbed `HttpMessageHandler`. They live in their own project, `PaymentGateway.Api.IntegrationTests`, tagged `Category=Integration`: start the simulator first (`docker compose up -d`), or skip them with `dotnet test --filter Category!=Integration`.
 

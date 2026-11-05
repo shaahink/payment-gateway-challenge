@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc;
 
 using PaymentGateway.Api.Bank;
+using PaymentGateway.Api.Controllers;
 using PaymentGateway.Api.Domain;
 
 namespace PaymentGateway.Api.Tests.Endpoints;
@@ -103,7 +104,8 @@ public class PostPaymentTests : IDisposable
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         var problem = await response.Content.ReadFromJsonAsync<ValidationProblemDetails>();
         Assert.NotNull(problem);
-        Assert.Contains("CardNumber", problem.Errors.Keys);
+        Assert.Equal("The payment was rejected.", problem.Title);
+        Assert.Equal(["cardNumber"], problem.Errors.Keys);
         Assert.Null(response.Headers.Location);
         Assert.Empty(_factory.Bank.Requests);
     }
@@ -128,13 +130,13 @@ public class PostPaymentTests : IDisposable
         var problem = await response.Content.ReadFromJsonAsync<ValidationProblemDetails>();
         Assert.NotNull(problem);
         Assert.Equal(
-            ["Amount", "CardNumber", "Currency", "Cvv", "ExpiryMonth", "ExpiryYear"],
+            ["amount", "cardNumber", "currency", "cvv", "expiryMonth", "expiryYear"],
             problem.Errors.Keys.Order());
         Assert.Empty(_factory.Bank.Requests);
     }
 
     [Fact]
-    public async Task RejectsAFieldOfTheWrongTypeWithTheSameProblemShape()
+    public async Task RejectsAFieldOfTheWrongTypeWithTheSameProblemShapeAndNoInternals()
     {
         // Arrange
         var json = """{"cardNumber":"2222405343248877","expiryMonth":4,"expiryYear":2027,"currency":"GBP","amount":"abc","cvv":"123"}""";
@@ -146,7 +148,24 @@ public class PostPaymentTests : IDisposable
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         var problem = await response.Content.ReadFromJsonAsync<ValidationProblemDetails>();
         Assert.NotNull(problem);
-        Assert.Contains("$.amount", problem.Errors.Keys);
+        Assert.Equal("The payment was rejected.", problem.Title);
+        Assert.Equal(["$.amount"], problem.Errors.Keys);
+        Assert.DoesNotContain("System.", problem.Errors["$.amount"].Single());
+        Assert.Empty(_factory.Bank.Requests);
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("null")]
+    public async Task RejectsAMissingBody(string json)
+    {
+        // Act
+        var response = await _client.PostAsync("/api/Payments", new StringContent(json, Encoding.UTF8, "application/json"));
+
+        // Assert
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        var problem = await response.Content.ReadFromJsonAsync<ValidationProblemDetails>();
+        Assert.Equal(PaymentsController.RejectedTitle, problem?.Title);
         Assert.Empty(_factory.Bank.Requests);
     }
 

@@ -1,6 +1,10 @@
 using System.Text.Json.Serialization;
 
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Infrastructure;
+
 using PaymentGateway.Api.Bank;
+using PaymentGateway.Api.Controllers;
 using PaymentGateway.Api.Services;
 using PaymentGateway.Api.Storage;
 
@@ -8,8 +12,20 @@ var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 
-builder.Services.AddControllers()
-    .AddJsonOptions(options => options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
+builder.Services.AddControllers(options => options.SuppressImplicitRequiredAttributeForNonNullableReferenceTypes = true)
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+        options.AllowInputFormatterExceptionMessages = false;
+    })
+    .ConfigureApiBehaviorOptions(options => options.InvalidModelStateResponseFactory = context =>
+    {
+        var problems = context.HttpContext.RequestServices.GetRequiredService<ProblemDetailsFactory>();
+        var details = problems.CreateValidationProblemDetails(
+            context.HttpContext, context.ModelState, title: PaymentsController.RejectedTitle);
+
+        return new BadRequestObjectResult(details) { ContentTypes = { "application/problem+json" } };
+    });
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();

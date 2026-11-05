@@ -1,4 +1,5 @@
 ﻿using System.Diagnostics;
+using System.Text.Json;
 
 using Microsoft.AspNetCore.Mvc;
 
@@ -13,6 +14,8 @@ namespace PaymentGateway.Api.Controllers;
 [ApiController]
 public class PaymentsController : ControllerBase
 {
+    public const string RejectedTitle = "The payment was rejected.";
+
     private readonly PaymentService _paymentService;
 
     public PaymentsController(PaymentService paymentService)
@@ -68,9 +71,9 @@ public class PaymentsController : ControllerBase
     {
         foreach (var error in errors)
         {
-            ModelState.AddModelError(error.Field, error.Message);
+            ModelState.AddModelError(JsonNamingPolicy.CamelCase.ConvertName(error.Field), error.Message);
         }
 
-        return ValidationProblem();
+        return ValidationProblem(title: RejectedTitle);
     }
 }

@@ -26,14 +26,14 @@ To run the gateway from an IDE instead, start only the simulator (`docker compos
 
 ```bash
 docker compose up -d bank_simulator
-dotnet test                                      # all 71 tests
-dotnet test --filter Category!=Integration       # the 68 that need no Docker
+dotnet test                                      # all 73 tests
+dotnet test --filter Category!=Integration       # the 70 that need no Docker
 ```
 
 | Layer | Tests | What it proves |
 | --- | --- | --- |
 | Unit | 50 | Every validation rule at its boundaries; the bank client's wire format and its failure mapping, against a stubbed `HttpMessageHandler`; card data masked in `ToString()` |
-| Endpoint | 18 | The HTTP contract in-process (`WebApplicationFactory`) with a fake bank: status codes, problem details, `Location`, no card data in responses or logs, the outcome counter, `/health` |
+| Endpoint | 20 | The HTTP contract in-process (`WebApplicationFactory`) with a fake bank: status codes, problem details, `Location`, no card data in responses or logs, the outcome counter, `/health` |
 | Integration | 3 | The real gateway against the real simulator, with no test doubles: odd, even and `0` cards |
 
 Built test-first against the acceptance criteria in [docs/requirements.md](docs/requirements.md). Each criterion names the test that proves it. Tests that went green on first run (because an earlier step had already built the behaviour) were checked by mutation: the code was broken on purpose to confirm the test would catch it. Line coverage of the in-process tests is 98.1%.
@@ -50,7 +50,7 @@ Built test-first against the acceptance criteria in [docs/requirements.md](docs/
 | --- | --- | --- |
 | Authorized | `201 Created` + `Location` | The payment: `id`, `status`, `cardNumberLastFour`, expiry, `currency`, `amount` |
 | Declined | `201 Created` + `Location` | The same, with `status: "Declined"` |
-| Rejected | `400 Bad Request` | Validation problem details naming every failing field. The bank is not called and nothing is stored |
+| Rejected | `400 Bad Request` | Validation problem details, titled "The payment was rejected.", naming every failing field as the merchant sent it (`cardNumber`). The bank is not called and nothing is stored |
 | Bank unavailable | `503 Service Unavailable` | Problem details: not processed, safe to retry |
 | Bank timed out | `504 Gateway Timeout` | Problem details: outcome unknown |
 | Bank error | `502 Bad Gateway` | Problem details |
