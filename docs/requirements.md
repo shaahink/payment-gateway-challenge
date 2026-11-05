@@ -96,7 +96,7 @@ Each criterion is proved by the test named against it. A criterion that depends 
 | AC5 | The bank returns `503` (card ending in `0`) | An error response per D2, as problem details | F5 | D2 | | |
 | AC6 | Any `POST` or `GET` response | Never contains the full card number or the CVV | N6 | | | |
 | AC7 | `GET` with the id of a stored payment | `200`, the AC1 fields, last four only | F4 | | | |
-| AC8 | `GET` with an unknown id | `404` | F4, B1 | | | |
+| AC8 | `GET` with an unknown id | `404` | F4, B1 | | `Returns404IfPaymentNotFound` | ✅ |
 | AC9 | Any processed payment | Logs carry the payment id and outcome, never card data | N7 | | | |
 | AC10 | `docker compose up` | The API and the simulator both start; `/health` returns `200` | N8 | | | |
 
