@@ -69,19 +69,21 @@ Baseline `08fafb4`: build passes with 4 warnings; tests run **1 passed, 1 failed
 | B11 | `PaymentGateway.Api.Tests.csproj:11` | `Mvc.Testing` 6.0.24 on a net8.0 project |
 | B12 | Both `.csproj` files | Known-vulnerable packages (`dotnet list package --vulnerable --include-transitive`). **High**, test project, transitive: `System.Text.Json` 6.0.0, `Newtonsoft.Json` 9.0.1, `System.Net.Http` 4.3.0, `System.Text.RegularExpressions` 4.3.0. **Moderate**, API: `Swashbuckle.AspNetCore.SwaggerUI` 6.2.3 |
 
-## Open decisions
+## Decisions
+
+Settled ones are recorded in [decisions.md](decisions.md).
 
 - D1. Status code for `Rejected`: `400` with the errors, and nothing stored (per F1 and F4).
 - D2. Bank `503`: what the merchant receives, and whether anything is stored.
 - D3. Bank `400`: our validation should make it impossible, so treat it as our fault, not the merchant's.
-- D4. The three supported currencies.
+- D4. ✅ GBP, EUR, USD.
 - D5. Idempotency and retries: out of scope for phase one, but say where they would go.
 - D6. `POST` returns `200` or `201 Created` with a `Location` header.
-- D7. Validation is hand-written, no library.
-- D8. No Luhn check: the brief does not ask for one, and the simulator picks its answer by last digit.
-- D9. Is the current expiry month valid? Cards are valid until the end of their expiry month.
-- D10. Lowercase currency (`gbp`): reject or normalise.
-- D11. Is an amount of `0` valid?
+- D7. ✅ Hand-written validation, no library.
+- D8. ✅ No Luhn check.
+- D9. ✅ The current expiry month is valid.
+- D10. ✅ Lowercase currency is rejected.
+- D11. ✅ Amount must be at least 1.
 
 ## Acceptance criteria
 
@@ -92,7 +94,7 @@ Each criterion is proved by the test named against it. A criterion that depends 
 | AC1 | A valid request, card ending in an odd digit | Success (D6), status `Authorized`, id, last four, expiry month and year, currency, amount. The payment is stored | F1, F3 | D6 | | |
 | AC2 | A valid request, card ending in an even digit | Same shape, status `Declined`. The payment is stored | F1, F3 | D6 | | |
 | AC3 | A request that breaks any F2 rule, or sends a field of the wrong type | `400` problem details naming every failing field in one response. The bank is not called and nothing is stored | F1, F2 | D1 | `RejectsAPaymentWithAnInvalidCardNumber` | 🟡 400 and field only |
-| AC4 | Each F2 rule at its boundaries | Accepted or rejected as the rule says (validator unit table) | F2 | D4, D8–D11 | | |
+| AC4 | Each F2 rule at its boundaries | Accepted or rejected as the rule says (validator unit table) | F2 | D4, D8–D11 | `PaymentRequestValidatorTests` | ✅ |
 | AC5 | The bank returns `503` (card ending in `0`) | An error response per D2, as problem details | F5 | D2 | | |
 | AC6 | Any `POST` or `GET` response | Never contains the full card number or the CVV | N6 | | | |
 | AC7 | `GET` with the id of a stored payment | `200`, the AC1 fields, last four only | F4 | | | |
