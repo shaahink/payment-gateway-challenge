@@ -96,11 +96,11 @@ Each criterion is proved by the test named against it. A criterion that depends 
 
 | AC | Given / when | Then | Traces to | Depends on | Test | Status |
 | --- | --- | --- | --- | --- | --- | --- |
-| AC1 | A valid request the bank authorises (simulator: card ending in an odd digit) | `201` with `Location`, status `Authorized`, id, last four, expiry month and year, currency, amount. The payment is stored | F1, F3 | D6 | `AuthorizesAPaymentTheBankApproves` | ✅ fake bank |
-| AC2 | A valid request the bank declines (simulator: card ending in an even digit) | `201`, same shape, status `Declined`. The payment is stored | F1, F3 | D6 | `DeclinesAPaymentTheBankDeclines` | ✅ fake bank |
+| AC1 | A valid request the bank authorises (simulator: card ending in an odd digit) | `201` with `Location`, status `Authorized`, id, last four, expiry month and year, currency, amount. The payment is stored | F1, F3 | D6 | `AuthorizesAPaymentTheBankApproves`, `BankSimulatorTests` | ✅ |
+| AC2 | A valid request the bank declines (simulator: card ending in an even digit) | `201`, same shape, status `Declined`. The payment is stored | F1, F3 | D6 | `DeclinesAPaymentTheBankDeclines`, `BankSimulatorTests` | ✅ |
 | AC3 | A request that breaks any F2 rule, or sends a field of the wrong type | `400` problem details naming every failing field in one response. The bank is not called and nothing is stored | F1, F2 | D1 | `RejectsAPaymentWithAnInvalidCardNumber`, `ReportsEveryInvalidFieldInOneResponse`, `RejectsAFieldOfTheWrongTypeWithTheSameProblemShape` | ✅ |
 | AC4 | Each F2 rule at its boundaries | Accepted or rejected as the rule says (validator unit table) | F2 | D4, D8–D11 | `PaymentRequestValidatorTests` | ✅ |
-| AC5 | The bank fails: `503` (simulator: card ending in `0`), a timeout, or anything unexpected | `503`, `504` or `502` as problem details saying whether a retry is safe. Nothing is stored | F5 | D2, D3 | `ReportsABankFailureAsProblemDetailsAndStoresNothing`, `BankClientTests` | ✅ fake bank |
+| AC5 | The bank fails: `503` (simulator: card ending in `0`), a timeout, or anything unexpected | `503`, `504` or `502` as problem details saying whether a retry is safe. Nothing is stored | F5 | D2, D3 | `ReportsABankFailureAsProblemDetailsAndStoresNothing`, `BankClientTests`, `BankSimulatorTests` | ✅ |
 | AC6 | Any `POST` or `GET` response | Never contains the full card number or the CVV | N6 | | | |
 | AC7 | `GET` with the id of a stored payment | `200`, the AC1 fields, last four only | F4 | | | |
 | AC8 | `GET` with an unknown id | `404` | F4, B1 | | `Returns404IfPaymentNotFound` | ✅ |
@@ -108,6 +108,6 @@ Each criterion is proved by the test named against it. A criterion that depends 
 | AC11 | Any processed payment | A `payments.processed` counter, tagged by status, goes up by one | N7 | | | |
 | AC10 | `docker compose up` | The API and the simulator both start; `/health` returns `200` | N8 | | | |
 
-**Integration tests** run the gateway against the real simulator in Docker and prove the *(simulator: …)* clauses of AC1, AC2 and AC5. Every other test uses a fake bank or a stubbed `HttpMessageHandler`.
+**Integration tests** run the gateway against the real simulator in Docker and prove the *(simulator: …)* clauses of AC1, AC2 and AC5. Every other test uses a fake bank or a stubbed `HttpMessageHandler`. They live in their own project, `PaymentGateway.Api.IntegrationTests`, tagged `Category=Integration`: start the simulator first (`docker compose up -d`), or skip them with `dotnet test --filter Category!=Integration`.
 
 **Build order:** AC8 → AC4 → AC1 → AC2 → AC3 (complete) → AC5 → integration tests → AC7 → AC6 → package updates (B11, B12) → AC9 → AC11 → AC10 → README. Smallest change first; each decision is settled when its criterion comes up.
