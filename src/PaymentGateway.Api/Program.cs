@@ -1,5 +1,6 @@
 using System.Text.Json.Serialization;
 
+using PaymentGateway.Api.Bank;
 using PaymentGateway.Api.Services;
 using PaymentGateway.Api.Storage;
 
@@ -17,6 +18,11 @@ builder.Services.AddSingleton<PaymentsRepository>();
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddSingleton<PaymentRequestValidator>();
 builder.Services.AddScoped<PaymentService>();
+builder.Services.AddHttpClient<IBankClient, BankClient>(client =>
+{
+    client.BaseAddress = new Uri(builder.Configuration["Bank:BaseUrl"]!);
+    client.Timeout = TimeSpan.FromSeconds(builder.Configuration.GetValue<int>("Bank:TimeoutSeconds"));
+});
 
 var app = builder.Build();
 

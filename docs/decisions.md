@@ -39,3 +39,26 @@ Numbered to match [requirements.md](requirements.md). Each records the choice, w
 
 - **Why:** a zero-value payment is not a payment.
 - **Rejected:** accepting `0`. Zero-amount authorisation (card verification) is a real flow, but a different one, and out of scope.
+
+## D12. Built-in logging with message templates
+
+- **Why:** `ILogger` message templates are already structured: each placeholder becomes a named field. One line per outcome, carrying the payment id and status.
+- **Rejected:** Serilog. It earns its place with sinks and enrichers, and none are in scope.
+- **Consequence:** log lines name fields, never values from the card. A rejection logs which fields failed, not what was sent.
+
+## D13. The bank call ignores the merchant's cancellation
+
+- **Why:** if the merchant disconnects mid-call, cancelling could abandon a request the bank has already authorised, leaving money held with no record on our side.
+- **Rejected:** passing the request's `CancellationToken` through, which is the usual .NET default.
+- **Consequence:** the call runs to completion, bounded by the `HttpClient` timeout (`Bank:TimeoutSeconds`).
+
+## D14. The service returns an outcome, not exceptions
+
+- **Why:** the brief defines the outcomes, and a rejection or a decline is expected, not exceptional. `PaymentOutcome` makes them a type the controller has to handle.
+- **Rejected:** throwing a validation exception and mapping it in middleware, which hides the flow. A general-purpose `Result<T>` library, which is more than three cases need.
+- **Consequence:** the controller is a switch from outcome to HTTP status. A new outcome (bank unavailable) is a new case.
+
+## D15. The bank client is a typed `HttpClient` with its own wire records
+
+- **Why:** the bank's contract (snake_case, `expiry_date` as `MM/YYYY`) stays inside `Bank/`, and `JsonNamingPolicy.SnakeCaseLower` maps it without attributes. `IHttpClientFactory` manages connection lifetimes.
+- **Consequence:** a change on the bank's side touches two internal records. Tests stub `HttpMessageHandler`, the seam `HttpClient` is built around, so no mocking library is needed. The simulator's empty `authorization_code` on a decline becomes `null` in the domain.
