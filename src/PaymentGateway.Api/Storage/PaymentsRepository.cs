@@ -1,8 +1,8 @@
-﻿using System.Collections.Concurrent;
+using System.Collections.Concurrent;
 
-using PaymentGateway.Api.Models;
+using PaymentGateway.Api.Domain;
 
-namespace PaymentGateway.Api.Services;
+namespace PaymentGateway.Api.Storage;
 
 public class PaymentsRepository
 {

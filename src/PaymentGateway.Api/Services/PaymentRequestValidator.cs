@@ -1,8 +1,7 @@
+using PaymentGateway.Api.Domain;
 using PaymentGateway.Api.Models.Requests;
 
-namespace PaymentGateway.Api.Validation;
-
-public record ValidationError(string Field, string Message);
+namespace PaymentGateway.Api.Services;
 
 public class PaymentRequestValidator
 {

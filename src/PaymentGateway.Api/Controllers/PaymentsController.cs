@@ -2,6 +2,7 @@
 
 using Microsoft.AspNetCore.Mvc;
 
+using PaymentGateway.Api.Domain;
 using PaymentGateway.Api.Models.Requests;
 using PaymentGateway.Api.Models.Responses;
 using PaymentGateway.Api.Services;
@@ -12,26 +13,19 @@ namespace PaymentGateway.Api.Controllers;
 [ApiController]
 public class PaymentsController : ControllerBase
 {
-    private readonly PaymentsRepository _paymentsRepository;
     private readonly PaymentService _paymentService;
 
-    public PaymentsController(PaymentsRepository paymentsRepository, PaymentService paymentService)
+    public PaymentsController(PaymentService paymentService)
     {
-        _paymentsRepository = paymentsRepository;
         _paymentService = paymentService;
     }
 
     [HttpGet("{id:guid}")]
     public ActionResult<GetPaymentResponse> GetPayment(Guid id)
     {
-        var payment = _paymentsRepository.Get(id);
+        var payment = _paymentService.Get(id);
 
-        if (payment is null)
-        {
-            return NotFound();
-        }
-
-        return Ok(GetPaymentResponse.From(payment));
+        return payment is null ? NotFound() : Ok(GetPaymentResponse.From(payment));
     }
 
     [HttpPost]
@@ -39,24 +33,24 @@ public class PaymentsController : ControllerBase
     {
         var outcome = await _paymentService.ProcessAsync(request);
 
-        switch (outcome)
+        return outcome switch
         {
-            case PaymentOutcome.Rejected rejected:
-                foreach (var error in rejected.Errors)
-                {
-                    ModelState.AddModelError(error.Field, error.Message);
-                }
+            PaymentOutcome.Processed processed => CreatedAtAction(
+                nameof(GetPayment),
+                new { id = processed.Payment.Id },
+                PostPaymentResponse.From(processed.Payment)),
+            PaymentOutcome.Rejected rejected => ValidationProblemFor(rejected.Errors),
+            _ => throw new UnreachableException()
+        };
+    }
 
-                return ValidationProblem();
-
-            case PaymentOutcome.Processed processed:
-                return CreatedAtAction(
-                    nameof(GetPayment),
-                    new { id = processed.Payment.Id },
-                    PostPaymentResponse.From(processed.Payment));
-
-            default:
-                throw new UnreachableException();
+    private ActionResult ValidationProblemFor(IReadOnlyList<ValidationError> errors)
+    {
+        foreach (var error in errors)
+        {
+            ModelState.AddModelError(error.Field, error.Message);
         }
+
+        return ValidationProblem();
     }
 }

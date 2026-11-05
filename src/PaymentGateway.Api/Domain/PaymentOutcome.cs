@@ -1,7 +1,4 @@
-using PaymentGateway.Api.Models;
-using PaymentGateway.Api.Validation;
-
-namespace PaymentGateway.Api.Services;
+namespace PaymentGateway.Api.Domain;
 
 public abstract record PaymentOutcome
 {

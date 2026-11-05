@@ -2,8 +2,8 @@ using System.Net;
 using System.Net.Http.Json;
 using Microsoft.Extensions.DependencyInjection;
 
-using PaymentGateway.Api.Models;
-using PaymentGateway.Api.Services;
+using PaymentGateway.Api.Domain;
+using PaymentGateway.Api.Storage;
 
 namespace PaymentGateway.Api.Tests.Endpoints;
 

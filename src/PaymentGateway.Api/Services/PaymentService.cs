@@ -1,7 +1,7 @@
 using PaymentGateway.Api.Bank;
-using PaymentGateway.Api.Models;
+using PaymentGateway.Api.Domain;
 using PaymentGateway.Api.Models.Requests;
-using PaymentGateway.Api.Validation;
+using PaymentGateway.Api.Storage;
 
 namespace PaymentGateway.Api.Services;
 
@@ -22,6 +22,11 @@ public class PaymentService
         _bank = bank;
         _repository = repository;
         _logger = logger;
+    }
+
+    public Payment? Get(Guid id)
+    {
+        return _repository.Get(id);
     }
 
     public async Task<PaymentOutcome> ProcessAsync(PostPaymentRequest request)
